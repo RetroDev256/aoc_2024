@@ -12,6 +12,8 @@ pub fn main() !void {
 fn day1(writer: anytype, gpa: Allocator) !void {
     const ids = @embedFile("day_1.txt");
 
+    // Parsing
+
     var list_a: std.ArrayListUnmanaged(usize) = .empty;
     defer list_a.deinit(gpa);
     var list_b: std.ArrayListUnmanaged(usize) = .empty;
@@ -34,11 +36,27 @@ fn day1(writer: anytype, gpa: Allocator) !void {
     std.mem.sortUnstable(usize, list_a.items, void{}, lessThanFn);
     std.mem.sortUnstable(usize, list_b.items, void{}, lessThanFn);
 
+    // Calculating part one
+
     var total_error: usize = 0;
     for (list_a.items, list_b.items) |a, b| {
         const diff = @max(a, b) - @min(a, b);
         total_error += diff;
     }
 
-    try writer.print("Day One: {}\n", .{total_error});
+    try writer.print("Day One Part One: {}\n", .{total_error});
+
+    // Calculating part two
+
+    var similarity_score: usize = 0;
+    for (list_a.items) |a| {
+        var occurances: usize = 0;
+        search: for (list_b.items) |b| {
+            if (b == a) occurances += 1;
+            if (b > a) break :search; // both are sorted ascending
+        }
+        similarity_score += a * occurances;
+    }
+
+    try writer.print("Day One Part Two: {}\n", .{similarity_score});
 }
