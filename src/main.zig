@@ -10,6 +10,7 @@ pub fn main() !void {
 
     try day1(stdout, gpa);
     try day2(stdout, gpa);
+    try day3(stdout, gpa);
 }
 
 fn day1(writer: anytype, gpa: Allocator) !void {
@@ -134,4 +135,91 @@ fn safeLevelsDay2(levels: []const usize) bool {
         }
     }
     return true;
+}
+
+fn day3(writer: anytype, _: Allocator) !void {
+    const memory = @embedFile("day_3.txt");
+
+    var enabled: bool = true;
+
+    // Part One
+    var num_1: usize = undefined;
+    var num_2: usize = undefined;
+    var total: usize = 0;
+
+    // Part Two
+    var filtered_total: usize = 0;
+
+    // Parsing
+    var idx: usize = 0;
+    const State = enum { search, mul, d_word, n1, n2 };
+    state: switch (State.search) {
+        .search => {
+            scan: while (true) switch (memory[idx]) {
+                0 => break :state, // end of file
+                'm' => continue :state .mul,
+                'd' => continue :state .d_word,
+                else => {
+                    idx += 1; // skip the unknown letter
+                    continue :scan;
+                },
+            };
+        },
+        .mul => {
+            if (std.mem.startsWith(u8, memory[idx..], "mul(")) {
+                idx += 4; // skip the mul(
+                continue :state .n1;
+            } else {
+                idx += 1; // skip the m
+                continue :state .search;
+            }
+        },
+        .d_word => {
+            if (std.mem.startsWith(u8, memory[idx..], "do()")) {
+                enabled = true;
+                idx += 4; // skip the do()
+            } else if (std.mem.startsWith(u8, memory[idx..], "don't()")) {
+                enabled = false;
+                idx += 7; // skip the don't()
+            } else {
+                idx += 1; // skip the d
+            }
+            continue :state .search;
+        },
+        .n1 => {
+            const start = idx;
+            if (memory[idx] < '0' or memory[idx] > '9') {
+                continue :state .search; // There wasn't a number
+            }
+            while (memory[idx] >= '0' and memory[idx] <= '9') {
+                idx += 1; // skip the digit
+            }
+            if (memory[idx] == ',') {
+                num_1 = try std.fmt.parseInt(usize, memory[start..idx], 10);
+                idx += 1; // skip the ,
+                continue :state .n2;
+            } else continue :state .search;
+        },
+        .n2 => {
+            const start = idx;
+            if (memory[idx] < '0' or memory[idx] > '9') {
+                continue :state .search; // There wasn't a number
+            }
+            while (memory[idx] >= '0' and memory[idx] <= '9') {
+                idx += 1; // skip the digit
+            }
+            if (memory[idx] == ')') {
+                num_2 = try std.fmt.parseInt(usize, memory[start..idx], 10);
+                idx += 1; // skip the )
+                total += num_1 * num_2;
+                if (enabled) {
+                    filtered_total += num_1 * num_2;
+                }
+            }
+            continue :state .search;
+        },
+    }
+
+    try writer.print("Day Three Part One: {}\n", .{total});
+    try writer.print("Day Three Part Two: {}\n", .{filtered_total});
 }
