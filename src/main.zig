@@ -11,6 +11,7 @@ pub fn main() !void {
     try day1(stdout, gpa);
     try day2(stdout, gpa);
     try day3(stdout, gpa);
+    try day4(stdout, gpa);
 }
 
 fn day1(writer: anytype, gpa: Allocator) !void {
@@ -222,4 +223,104 @@ fn day3(writer: anytype, _: Allocator) !void {
 
     try writer.print("Day Three Part One: {}\n", .{total});
     try writer.print("Day Three Part Two: {}\n", .{filtered_total});
+}
+
+fn day4(writer: anytype, _: Allocator) !void {
+    const search = @embedFile("day_4.txt");
+
+    // Parsing
+    const width = comptime std.mem.indexOfScalar(u8, search, '\n').?;
+    const height = search.len / (width + 1);
+    assert(search.len == (width + 1) * height); // Include one for newline
+
+    // Part one
+    var part_1: usize = 0;
+    const word = "XMAS";
+
+    // Evaluating
+    for (0..height) |y| {
+        for (0..width) |x| {
+            // Check all 8 directions
+            for (0..3) |sub_y| {
+                for (0..3) |sub_x| {
+                    const dx = @as(isize, @intCast(sub_x)) - 1;
+                    const dy = @as(isize, @intCast(sub_y)) - 1;
+                    // skip iterating over the same index
+                    if (dx == 0 and dy == 0) continue;
+                    // Skip directions that would run into a wall
+                    if (dx == -1 and x < (word.len - 1)) continue;
+                    if (dy == -1 and y < (word.len - 1)) continue;
+                    if (dx == 1 and x > width - word.len) continue;
+                    if (dy == 1 and y > height - word.len) continue;
+                    // Collect the letters
+                    var letters: [word.len]u8 = undefined;
+                    for (0..word.len) |i| {
+                        const mult: isize = @intCast(i);
+                        const x_off: isize = @as(isize, @intCast(x)) + dx * mult;
+                        const y_off: isize = @as(isize, @intCast(y)) + dy * mult;
+                        // Include 1 extra symbol per line for newline
+                        const index = x_off + y_off * @as(isize, @intCast(width + 1));
+                        letters[i] = search[@intCast(index)];
+                    }
+                    // Evaluate & add
+                    part_1 += @intFromBool(std.mem.eql(u8, &letters, word));
+                }
+            }
+        }
+    }
+    try writer.print("Day Four Part One: {}\n", .{part_1});
+
+    // Part two (I kinda gave up on big brain here)
+    var part_2: usize = 0;
+
+    for (0..height - 2) |y| {
+        // Multiply by y and add x to get the index
+        const y_mul: usize = width + 1; // account for newline
+        for (0..width - 2) |x| {
+            const center = (x + 1) + (y + 1) * y_mul;
+            const top_left = (x + 0) + (y + 0) * y_mul;
+            const top_right = (x + 2) + (y + 0) * y_mul;
+            const bot_left = (x + 0) + (y + 2) * y_mul;
+            const bot_right = (x + 2) + (y + 2) * y_mul;
+
+            // The A is always center
+            if (search[center] != 'A') continue;
+
+            // Select the right cross shape
+            if (search[top_left] == 'M') {
+                if (search[top_right] == 'M') {
+                    // M.M (checked)
+                    // .A. (checked)
+                    // S.S
+                    if (search[bot_left] != 'S') continue;
+                    if (search[bot_right] != 'S') continue;
+                    part_2 += 1;
+                } else if (search[top_right] == 'S') {
+                    // M.S (checked)
+                    // .A. (checked)
+                    // M.S
+                    if (search[bot_left] != 'M') continue;
+                    if (search[bot_right] != 'S') continue;
+                    part_2 += 1;
+                }
+            } else if (search[top_left] == 'S') {
+                if (search[top_right] == 'M') {
+                    // S.M (checked)
+                    // .A. (checked)
+                    // S.M
+                    if (search[bot_left] != 'S') continue;
+                    if (search[bot_right] != 'M') continue;
+                    part_2 += 1;
+                } else if (search[top_right] == 'S') {
+                    // S.S (checked)
+                    // .A. (checked)
+                    // M.M
+                    if (search[bot_left] != 'M') continue;
+                    if (search[bot_right] != 'M') continue;
+                    part_2 += 1;
+                }
+            }
+        }
+    }
+    try writer.print("Day Four Part Two: {}\n", .{part_2});
 }
