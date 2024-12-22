@@ -12,6 +12,7 @@ pub fn main() !void {
     try day2(stdout, gpa);
     try day3(stdout, gpa);
     try day4(stdout, gpa);
+    try day5(stdout, gpa);
 }
 
 fn day1(writer: anytype, gpa: Allocator) !void {
@@ -323,4 +324,8 @@ fn day4(writer: anytype, _: Allocator) !void {
         }
     }
     try writer.print("Day Four Part Two: {}\n", .{part_2});
+}
+
+fn day5(writer: anytype, gpa: Allocator) !void {
+    _ = .{ writer, gpa };
 }
