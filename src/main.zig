@@ -327,5 +327,95 @@ fn day4(writer: anytype, _: Allocator) !void {
 }
 
 fn day5(writer: anytype, gpa: Allocator) !void {
-    _ = .{ writer, gpa };
+    const day5_input = @embedFile("day_5.txt");
+
+    var splitter = std.mem.tokenizeSequence(u8, day5_input, "\n\n");
+    const first = splitter.next().?; // contains the first part
+    const second = splitter.next().?; // contains the second part
+    assert(splitter.next() == null);
+
+    var ordering: List(struct { u8, u8 }) = .empty;
+    defer ordering.deinit(gpa);
+
+    // parse the input into each ordering of pages
+    var first_lines = std.mem.tokenizeScalar(u8, first, '\n'); // split by line
+    while (first_lines.next()) |order| {
+        var pages = std.mem.tokenizeScalar(u8, order, '|');
+        const first_page = try std.fmt.parseInt(u8, pages.next().?, 10);
+        const second_page = try std.fmt.parseInt(u8, pages.next().?, 10);
+        assert(pages.next() == null);
+
+        try ordering.append(gpa, .{ first_page, second_page });
+    }
+
+    var correct_updates: List(List(u8)) = .empty;
+    defer correct_updates.deinit(gpa);
+    defer for (correct_updates.items) |*pages| pages.deinit(gpa);
+
+    var incorrect_updates: List(List(u8)) = .empty;
+    defer incorrect_updates.deinit(gpa);
+    defer for (incorrect_updates.items) |*pages| pages.deinit(gpa);
+
+    var second_lines = std.mem.tokenizeScalar(u8, second, '\n');
+    while (second_lines.next()) |update| {
+        var pages: List(u8) = .empty;
+
+        // load each page into memory
+        var page_toker = std.mem.tokenizeScalar(u8, update, ',');
+        while (page_toker.next()) |page_str| {
+            const page = try std.fmt.parseInt(u8, page_str, 10);
+            try pages.append(gpa, page);
+        }
+
+        var correct: bool = true;
+
+        // see if the update follows the rules
+        rule_check: for (pages.items, 0..) |page, i| {
+            for (ordering.items) |order| {
+                if (page == order[0]) {
+                    // verify there are none of order[1] before page
+                    for (0..i) |check_i| {
+                        if (pages.items[check_i] == order[1]) {
+                            // incorrect ordering
+                            correct = false;
+                            break :rule_check;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (correct) {
+            try correct_updates.append(gpa, pages);
+        } else {
+            try incorrect_updates.append(gpa, pages);
+        }
+    }
+
+    var p1: u32 = 0;
+    for (correct_updates.items) |update| {
+        p1 += update.items[update.items.len / 2];
+    }
+    try writer.print("Day Five Part One: {}\n", .{p1});
+
+    // correct the updating of the pages & print out the sum of the middle pages again
+    var p2: u32 = 0;
+    for (incorrect_updates.items) |update| {
+        var corrected: List(u8) = try update.clone(gpa);
+        defer corrected.deinit(gpa);
+
+        std.mem.sortUnstable(u8, corrected.items, ordering, lessThanDay5);
+
+        p2 += corrected.items[corrected.items.len / 2];
+    }
+    try writer.print("Day Five Part Two: {}\n", .{p2});
+}
+
+fn lessThanDay5(ordering: List(struct { u8, u8 }), lhs: u8, rhs: u8) bool {
+    for (ordering.items) |order| {
+        if (order[0] == lhs and order[1] == rhs) {
+            return true;
+        }
+    }
+    return false;
 }
